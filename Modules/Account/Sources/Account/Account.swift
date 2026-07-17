@@ -87,6 +87,7 @@ public enum FetchType {
 	case articleIDs(Set<String>)
 	case search(String)
 	case searchWithArticleIDs(String, Set<String>)
+	case smartFeedCriteria(SmartFeedCriteria)
 }
 
 @MainActor public final class Account: ProgressInfoReporter, DisplayNameProvider, UnreadCountProvider, Container, Hashable {
@@ -800,6 +801,8 @@ public enum FetchType {
 			return _fetchArticlesMatching(searchString: searchString)
 		case .searchWithArticleIDs(let searchString, let articleIDs):
 			return _fetchArticlesMatchingWithArticleIDs(searchString: searchString, articleIDs: articleIDs)
+		case .smartFeedCriteria(let criteria):
+			return _fetchArticlesMatchingCriteria(criteria)
 		}
 	}
 
@@ -825,7 +828,13 @@ public enum FetchType {
 			return await _fetchArticlesMatchingAsync(searchString: searchString)
 		case .searchWithArticleIDs(let searchString, let articleIDs):
 			return await _fetchArticlesMatchingWithArticleIDsAsync(searchString: searchString, articleIDs: articleIDs)
+		case .smartFeedCriteria(let criteria):
+			return await _fetchArticlesMatchingCriteriaAsync(criteria)
 		}
+	}
+
+	public func fetchUnreadCountMatchingCriteriaAsync(_ criteria: SmartFeedCriteria) async -> Int {
+		await database.fetchUnreadCountMatchingCriteriaAsync(criteria: criteria, feedIDs: flattenedFeedsIDs)
 	}
 
 	public func fetchUnreadCountForStarredArticlesAsync() async -> Int {
@@ -1286,6 +1295,14 @@ private extension Account {
 
 	func _fetchArticlesMatchingAsync(searchString: String) async -> Set<Article> {
 		await database.fetchArticlesMatchingAsync(searchString: searchString, feedIDs: flattenedFeedsIDs)
+	}
+
+	func _fetchArticlesMatchingCriteria(_ criteria: SmartFeedCriteria) -> Set<Article> {
+		database.fetchArticlesMatchingCriteria(criteria: criteria, feedIDs: flattenedFeedsIDs)
+	}
+
+	func _fetchArticlesMatchingCriteriaAsync(_ criteria: SmartFeedCriteria) async -> Set<Article> {
+		await database.fetchArticlesMatchingCriteriaAsync(criteria: criteria, feedIDs: flattenedFeedsIDs)
 	}
 
 	func _fetchArticlesMatchingWithArticleIDs(searchString: String, articleIDs: Set<String>) -> Set<Article> {

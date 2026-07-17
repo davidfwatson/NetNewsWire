@@ -78,6 +78,11 @@
                                                 <action selector="showAddFolderWindow:" target="Ady-hI-5gd" id="GIi-wc-uYk"/>
                                             </connections>
                                         </menuItem>
+                                        <menuItem title="New Smart Feed…" id="SmF-ee-d01">
+                                            <connections>
+                                                <action selector="showAddSmartFeedWindow:" target="Ady-hI-5gd" id="SmF-ac-t01"/>
+                                            </connections>
+                                        </menuItem>
                                         <menuItem isSeparatorItem="YES" id="m54-Is-iLE"/>
                                         <menuItem title="New Window" keyEquivalent="n" id="pGg-Gc-PU2">
                                             <modifierMask key="keyEquivalentModifierMask" option="YES" command="YES"/>
