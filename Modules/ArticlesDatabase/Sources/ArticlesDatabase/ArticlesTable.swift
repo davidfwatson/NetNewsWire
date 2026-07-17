@@ -108,6 +108,29 @@ final class ArticlesTable: DatabaseTable, Sendable {
 		fetchArticlesCount { self.fetchStarredArticlesCount(feedIDs, $0) }
 	}
 
+	// MARK: - Fetching Custom Smart Feed (Criteria) Articles
+
+	func fetchArticlesMatchingCriteria(_ criteria: SmartFeedCriteria, _ feedIDs: Set<String>) -> Set<Article> {
+		fetchArticles { self.fetchArticlesMatchingCriteria(criteria, feedIDs, $0) }
+	}
+
+	func fetchArticlesMatchingCriteriaAsync(_ criteria: SmartFeedCriteria, _ feedIDs: Set<String>, _ completion: @escaping ArticleSetResultBlock) {
+		fetchArticlesAsync({ self.fetchArticlesMatchingCriteria(criteria, feedIDs, $0) }, completion)
+	}
+
+	func fetchUnreadCountMatchingCriteriaAsync(_ criteria: SmartFeedCriteria, _ feedIDs: Set<String>, _ completion: @escaping SingleUnreadCountCompletionBlock) {
+		if feedIDs.isEmpty {
+			completion(0)
+			return
+		}
+		queue.runInDatabase { database in
+			let count = self.fetchUnreadCountMatchingCriteria(criteria, feedIDs, database)
+			DispatchQueue.main.async {
+				completion(count)
+			}
+		}
+	}
+
 	// MARK: - Fetching Counts Async
 
 	func fetchArticleCountsAsync(_ feedIDs: Set<String>, _ completion: @escaping @Sendable (ArticleCounts) -> Void) {
@@ -801,6 +824,31 @@ nonisolated private extension ArticlesTable {
 
 	func fetchArticlesForFeedID(_ feedID: String, _ database: FMDatabase) -> Set<Article> {
 		return fetchArticlesWithWhereClause(database, whereClause: "articles.feedID = ?", parameters: [feedID as AnyObject])
+	}
+
+	func fetchArticlesMatchingCriteria(_ criteria: SmartFeedCriteria, _ feedIDs: Set<String>, _ database: FMDatabase) -> Set<Article> {
+		// select * from articles natural join statuses where feedID in (…) and (<criteria>)
+		if feedIDs.isEmpty {
+			return Set<Article>()
+		}
+		let (criteriaClause, criteriaParameters) = criteria.whereClauseAndParameters(forAccountID: accountID)
+		let placeholders = NSString.rs_SQLValueList(withPlaceholders: UInt(feedIDs.count))!
+		let whereClause = "feedID in \(placeholders) and (\(criteriaClause))"
+		var parameters = feedIDs.map { $0 as AnyObject }
+		parameters += criteriaParameters.map { $0 as AnyObject }
+		return fetchArticlesWithWhereClause(database, whereClause: whereClause, parameters: parameters)
+	}
+
+	func fetchUnreadCountMatchingCriteria(_ criteria: SmartFeedCriteria, _ feedIDs: Set<String>, _ database: FMDatabase) -> Int {
+		if feedIDs.isEmpty {
+			return 0
+		}
+		let (criteriaClause, criteriaParameters) = criteria.whereClauseAndParameters(forAccountID: accountID)
+		let placeholders = NSString.rs_SQLValueList(withPlaceholders: UInt(feedIDs.count))!
+		let whereClause = "feedID in \(placeholders) and (\(criteriaClause)) and read=0"
+		var parameters = feedIDs.map { $0 as AnyObject }
+		parameters += criteriaParameters.map { $0 as AnyObject }
+		return fetchArticleCountsWithWhereClause(database, whereClause: whereClause, parameters: parameters)
 	}
 
 	func fetchArticles(articleIDs: Set<String>, _ database: FMDatabase) -> Set<Article> {

@@ -87,6 +87,7 @@ let appName = "NetNewsWire"
 	private var aboutWindowController: AboutWindowController?
 	private var addFeedController: AddFeedController?
 	private var addFolderWindowController: AddFolderWindowController?
+	private var addSmartFeedWindowController: AddSmartFeedWindowController?
 	private var importOPMLController: ImportOPMLWindowController?
 	private var exportOPMLController: ExportOPMLWindowController?
 	private var keyboardShortcutsWindowController: WebViewWindowController?
@@ -137,6 +138,11 @@ let appName = "NetNewsWire"
 	func showAddFeedSheetOnWindow(_ window: NSWindow, urlString: String?, name: String?, account: Account?, folder: Folder?) {
 		addFeedController = AddFeedController(hostWindow: window)
 		addFeedController?.showAddFeedSheet(urlString, name, account, folder)
+	}
+
+	func showAddSmartFeedSheetOnWindow(_ window: NSWindow, userSmartFeed: UserSmartFeed? = nil) {
+		addSmartFeedWindowController = AddSmartFeedWindowController(userSmartFeed: userSmartFeed)
+		addSmartFeedWindowController!.runSheetOnWindow(window)
 	}
 
 	// MARK: - NSApplicationDelegate
@@ -498,7 +504,7 @@ let appName = "NetNewsWire"
 			return mainWindowController?.isOpen ?? false
 		}
 
-		if item.action == #selector(showAddFeedWindow(_:)) || item.action == #selector(showAddFolderWindow(_:)) {
+		if item.action == #selector(showAddFeedWindow(_:)) || item.action == #selector(showAddFolderWindow(_:)) || item.action == #selector(showAddSmartFeedWindow(_:)) {
 			return !isDisplayingSheet && !AccountManager.shared.activeAccounts.isEmpty
 		}
 
@@ -627,6 +633,11 @@ let appName = "NetNewsWire"
 	@IBAction func showAddFolderWindow(_ sender: Any?) {
 		let windowController = createAndShowMainWindowIfNecessary()
 		showAddFolderSheetOnWindow(windowController.window!)
+	}
+
+	@IBAction func showAddSmartFeedWindow(_ sender: Any?) {
+		let windowController = createAndShowMainWindowIfNecessary()
+		showAddSmartFeedSheetOnWindow(windowController.window!)
 	}
 
 	@IBAction func showKeyboardShortcutsWindow(_ sender: Any?) {

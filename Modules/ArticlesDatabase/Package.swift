@@ -29,6 +29,14 @@ let package = Package(
 				.enableUpcomingFeature("NonisolatedNonsendingByDefault"),
 				.enableUpcomingFeature("InferIsolatedConformances")
 			]
+		),
+		.testTarget(
+			name: "ArticlesDatabaseTests",
+			dependencies: ["ArticlesDatabase"],
+			swiftSettings: [
+				.enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+				.enableUpcomingFeature("InferIsolatedConformances")
+			]
 		)
 	]
 )

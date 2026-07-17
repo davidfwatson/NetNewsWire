@@ -1426,6 +1426,16 @@ struct SidebarItemNode: Hashable, Sendable {
 		mainFeedCollectionViewController.present(addNavViewController, animated: true)
 	}
 
+	/// Presents the shared editor to create a new custom smart feed, or edit an existing one when `userSmartFeed` is non-nil.
+	func showSmartFeedEditor(userSmartFeed: UserSmartFeed? = nil) {
+		let editorView = SmartFeedEditorView(userSmartFeed: userSmartFeed) { [weak self] in
+			self?.mainFeedCollectionViewController.dismiss(animated: true)
+		}
+		let hostingController = UIHostingController(rootView: editorView)
+		hostingController.modalPresentationStyle = .formSheet
+		mainFeedCollectionViewController.present(hostingController, animated: true)
+	}
+
 	func showFullScreenImage(image: UIImage, imageTitle: String?, transitioningDelegate: UIViewControllerTransitioningDelegate) {
 		let imageVC = UIStoryboard.main.instantiateController(ofType: ImageViewController.self)
 		imageVC.image = image

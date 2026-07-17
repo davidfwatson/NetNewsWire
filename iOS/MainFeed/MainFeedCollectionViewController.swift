@@ -196,7 +196,30 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			guard let self else {
 				return nil
 			}
-			if indexPath.section == 0 { return UISwipeActionsConfiguration(actions: []) }
+			if indexPath.section == 0 {
+				// Smart Feeds section: only user-created smart feeds can be deleted/edited.
+				guard self.userSmartFeed(at: indexPath) != nil else {
+					return UISwipeActionsConfiguration(actions: [])
+				}
+				let deleteTitle = NSLocalizedString("Delete", comment: "Delete button")
+				let deleteAction = UIContextualAction(style: .destructive, title: nil) { [weak self] _, _, completion in
+					self?.delete(indexPath: indexPath)
+					completion(true)
+				}
+				deleteAction.image = UIImage(systemName: "trash")
+				deleteAction.accessibilityLabel = deleteTitle
+				deleteAction.backgroundColor = UIColor.systemRed
+
+				let editTitle = NSLocalizedString("Edit", comment: "Edit")
+				let editAction = UIContextualAction(style: .normal, title: nil) { [weak self] _, _, completion in
+					self?.editSmartFeed(indexPath: indexPath)
+					completion(true)
+				}
+				editAction.image = UIImage(systemName: "pencil")
+				editAction.accessibilityLabel = editTitle
+				editAction.backgroundColor = UIColor.systemGray
+				return UISwipeActionsConfiguration(actions: [deleteAction, editAction])
+			}
 			var actions = [UIContextualAction]()
 
 			// Set up the delete action
@@ -810,6 +833,12 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 
 		menuItems.append(addFolderAction)
 
+		let addSmartFeedActionTitle = NSLocalizedString("Add Smart Feed", comment: "Add Smart Feed")
+		let addSmartFeedAction = UIAction(title: addSmartFeedActionTitle, image: Assets.Images.smartFeed) { _ in
+			self.coordinator.showSmartFeedEditor()
+		}
+		menuItems.append(addSmartFeedAction)
+
 		let contextMenu = UIMenu(title: "", image: nil, identifier: nil, options: [], children: menuItems.reversed())
 
 		self.addNewItemButton.menu = contextMenu
@@ -853,6 +882,12 @@ final class MainFeedCollectionViewController: UICollectionViewController, Undoab
 			}
 			alertController.addAction(addFolderAction)
 		}
+
+		let addSmartFeedActionTitle = NSLocalizedString("Add Smart Feed", comment: "Add Smart Feed")
+		let addSmartFeedAction = UIAlertAction(title: addSmartFeedActionTitle, style: .default) { _ in
+			self.coordinator.showSmartFeedEditor()
+		}
+		alertController.addAction(addSmartFeedAction)
 
 		alertController.addAction(cancelAction)
 
@@ -1036,13 +1071,51 @@ extension MainFeedCollectionViewController {
 	}
 
 	func makePseudoFeedContextMenu(indexPath: IndexPath) -> UIContextMenuConfiguration? {
-		guard let markAllAction = self.markAllAsReadAction(indexPath: indexPath) else {
+		var actions = [UIMenuElement]()
+		if let markAllAction = self.markAllAsReadAction(indexPath: indexPath) {
+			actions.append(markAllAction)
+		}
+		if self.userSmartFeed(at: indexPath) != nil {
+			actions.append(self.editSmartFeedAction(indexPath: indexPath))
+			actions.append(self.deleteSmartFeedAction(indexPath: indexPath))
+		}
+		guard !actions.isEmpty else {
 			return nil
 		}
 
 		return UIContextMenuConfiguration(identifier: MainFeedRowIdentifier(indexPath: indexPath), previewProvider: nil, actionProvider: { _ in
-			return UIMenu(title: "", children: [markAllAction])
+			return UIMenu(title: "", children: actions)
 		})
+	}
+
+	func editSmartFeedAction(indexPath: IndexPath) -> UIAction {
+		let title = NSLocalizedString("Edit Smart Feed", comment: "Command")
+		return UIAction(title: title, image: Assets.Images.edit) { [weak self] _ in
+			self?.editSmartFeed(indexPath: indexPath)
+		}
+	}
+
+	func deleteSmartFeedAction(indexPath: IndexPath) -> UIAction {
+		let title = NSLocalizedString("Delete Smart Feed", comment: "Command")
+		return UIAction(title: title, image: Assets.Images.trash, attributes: .destructive) { [weak self] _ in
+			self?.delete(indexPath: indexPath)
+		}
+	}
+
+	/// The user-created smart feed at the given index path, or `nil` if the row is a
+	/// built-in smart feed (Today/All Unread/Starred) or not a smart feed at all.
+	func userSmartFeed(at indexPath: IndexPath) -> UserSmartFeed? {
+		guard let sidebarItem = dataSource.itemIdentifier(for: indexPath)?.node.representedObject as? SidebarItem else {
+			return nil
+		}
+		return SmartFeedsController.shared.userSmartFeed(for: sidebarItem.sidebarItemID)
+	}
+
+	func editSmartFeed(indexPath: IndexPath) {
+		guard let userSmartFeed = userSmartFeed(at: indexPath) else {
+			return
+		}
+		coordinator.showSmartFeedEditor(userSmartFeed: userSmartFeed)
 	}
 
 	func homePageAction(indexPath: IndexPath) -> UIAction? {
@@ -1324,7 +1397,11 @@ extension MainFeedCollectionViewController {
 
 		let title: String
 		let message: String
-		if sidebarItem is Folder {
+		if userSmartFeed(at: indexPath) != nil {
+			title = NSLocalizedString("Delete Smart Feed", comment: "Command")
+			let localizedInformativeText = NSLocalizedString("Are you sure you want to delete the “%@” smart feed?", comment: "Smart feed delete text")
+			message = NSString.localizedStringWithFormat(localizedInformativeText as NSString, sidebarItem.nameForDisplay) as String
+		} else if sidebarItem is Folder {
 			title = NSLocalizedString("Delete Folder", comment: "Command")
 			let localizedInformativeText = NSLocalizedString("Are you sure you want to delete the “%@” folder?", comment: "Folder delete text")
 			message = NSString.localizedStringWithFormat(localizedInformativeText as NSString, sidebarItem.nameForDisplay) as String
@@ -1350,6 +1427,15 @@ extension MainFeedCollectionViewController {
 	}
 
 	func performDelete(indexPath: IndexPath) {
+		// Custom smart feeds are pseudo-feeds, which DeleteCommand rejects, so remove them directly.
+		if let userSmartFeed = userSmartFeed(at: indexPath) {
+			if indexPath == coordinator.currentFeedIndexPath {
+				coordinator.selectSidebarItem(indexPath: nil)
+			}
+			SmartFeedsController.shared.removeUserSmartFeed(userSmartFeed)
+			return
+		}
+
 		guard let undoManager = undoManager,
 			  let deleteNode = dataSource.itemIdentifier(for: indexPath)?.node,
 			  let deleteCommand = DeleteCommand(nodesToDelete: [deleteNode], undoManager: undoManager, errorHandler: ErrorHandler.present(self)) else {

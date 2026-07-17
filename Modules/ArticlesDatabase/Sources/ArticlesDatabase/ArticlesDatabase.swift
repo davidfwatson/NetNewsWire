@@ -158,6 +158,11 @@ public struct ArticleCounts: Sendable {
 		return articlesTable.fetchArticlesMatching(searchString, feedIDs)
 	}
 
+	public func fetchArticlesMatchingCriteria(criteria: SmartFeedCriteria, feedIDs: Set<String>) -> Set<Article> {
+		Self.logger.debug("ArticlesDatabase: \(#function, privacy: .public) \(self.accountID, privacy: .public)")
+		return articlesTable.fetchArticlesMatchingCriteria(criteria, feedIDs)
+	}
+
 	public func fetchArticlesMatchingWithArticleIDs(searchString: String, articleIDs: Set<String>) -> Set<Article> {
 		Self.logger.debug("ArticlesDatabase: \(#function, privacy: .public) \(self.accountID, privacy: .public)")
 		return articlesTable.fetchArticlesMatchingWithArticleIDs(searchString, articleIDs)
@@ -231,6 +236,14 @@ public struct ArticleCounts: Sendable {
 		}
 	}
 
+	public func fetchArticlesMatchingCriteriaAsync(criteria: SmartFeedCriteria, feedIDs: Set<String>) async -> Set<Article> {
+		await withCheckedContinuation { continuation in
+			articlesTable.fetchArticlesMatchingCriteriaAsync(criteria, feedIDs) { articles in
+				continuation.resume(returning: articles)
+			}
+		}
+	}
+
 	public func fetchArticlesMatchingWithArticleIDsAsync(searchString: String, articleIDs: Set<String>) async -> Set<Article> {
 		await withCheckedContinuation { continuation in
 			_fetchArticlesMatchingWithArticleIDsAsync(searchString: searchString, articleIDs: articleIDs) { articles in
@@ -284,6 +297,14 @@ public struct ArticleCounts: Sendable {
 	public func fetchUnreadCountForStarredArticlesAsync(feedIDs: Set<String>) async -> Int {
 		await withCheckedContinuation { continuation in
 			_fetchStarredAndUnreadCount(feedIDs: feedIDs) { unreadCount in
+				continuation.resume(returning: unreadCount)
+			}
+		}
+	}
+
+	public func fetchUnreadCountMatchingCriteriaAsync(criteria: SmartFeedCriteria, feedIDs: Set<String>) async -> Int {
+		await withCheckedContinuation { continuation in
+			articlesTable.fetchUnreadCountMatchingCriteriaAsync(criteria, feedIDs) { unreadCount in
 				continuation.resume(returning: unreadCount)
 			}
 		}

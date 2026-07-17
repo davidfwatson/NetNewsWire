@@ -104,6 +104,38 @@ extension SidebarViewController {
 		window.beginSheet(renameSheet)
 	}
 
+	@objc func editSmartFeedFromContextualMenu(_ sender: Any?) {
+		guard let menuItem = sender as? NSMenuItem,
+			  let userSmartFeed = menuItem.representedObject as? UserSmartFeed,
+			  let window = view.window else {
+			return
+		}
+		appDelegate.showAddSmartFeedSheetOnWindow(window, userSmartFeed: userSmartFeed)
+	}
+
+	@objc func deleteSmartFeedFromContextualMenu(_ sender: Any?) {
+		guard let menuItem = sender as? NSMenuItem,
+			  let userSmartFeed = menuItem.representedObject as? UserSmartFeed,
+			  let window = view.window else {
+			return
+		}
+
+		let alert = NSAlert()
+		alert.alertStyle = .warning
+		alert.messageText = NSLocalizedString("Delete Smart Feed", comment: "Command")
+		let formatString = NSLocalizedString("Are you sure you want to delete the “%@” smart feed?", comment: "Smart feed delete text")
+		alert.informativeText = NSString.localizedStringWithFormat(formatString as NSString, userSmartFeed.name) as String
+		alert.addButton(withTitle: NSLocalizedString("Delete", comment: "Delete button"))
+		alert.addButton(withTitle: NSLocalizedString("Cancel", comment: "Cancel button"))
+		alert.buttons[0].hasDestructiveAction = true
+
+		alert.beginSheetModal(for: window) { response in
+			if response == .alertFirstButtonReturn {
+				SmartFeedsController.shared.removeUserSmartFeed(userSmartFeed)
+			}
+		}
+	}
+
 	@objc func toggleNotificationsFromContextMenu(_ sender: Any?) {
 		guard let item = sender as? NSMenuItem,
 			  let feed = item.representedObject as? Feed else {
@@ -199,6 +231,7 @@ private extension SidebarViewController {
 
 		menu.addItem(withTitle: NSLocalizedString("New Feed", comment: "Command"), action: #selector(AppDelegate.showAddFeedWindow(_:)), keyEquivalent: "")
 		menu.addItem(withTitle: NSLocalizedString("New Folder", comment: "Command"), action: #selector(AppDelegate.showAddFolderWindow(_:)), keyEquivalent: "")
+		menu.addItem(withTitle: NSLocalizedString("New Smart Feed", comment: "Command"), action: #selector(AppDelegate.showAddSmartFeedWindow(_:)), keyEquivalent: "")
 
 		return menu
 	}
@@ -269,6 +302,14 @@ private extension SidebarViewController {
 		if smartFeed.unreadCount > 0 {
 			menu.addItem(markAllReadMenuItem([smartFeed]))
 		}
+
+		// Only user-created smart feeds can be edited or deleted.
+		if let userSmartFeed = SmartFeedsController.shared.userSmartFeed(for: smartFeed.sidebarItemID) {
+			menu.addSeparatorIfNeeded()
+			menu.addItem(menuItem(NSLocalizedString("Edit Smart Feed", comment: "Command"), #selector(editSmartFeedFromContextualMenu(_:)), userSmartFeed))
+			menu.addItem(menuItem(NSLocalizedString("Delete Smart Feed", comment: "Command"), #selector(deleteSmartFeedFromContextualMenu(_:)), userSmartFeed))
+		}
+
 		return menu.numberOfItems > 0 ? menu : nil
 	}
 
