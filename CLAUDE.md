@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Quiet build and test**: `./buildscripts/quiet_build_and_test.sh` - Same as above with less verbose output
 - **Manual Xcode builds**:
   - macOS: `xcodebuild -project NetNewsWire.xcodeproj -scheme NetNewsWire -destination "platform=macOS,arch=arm64" build`
-  - iOS: `xcodebuild -project NetNewsWire.xcodeproj -scheme NetNewsWire-iOS -destination "platform=iOS Simulator,name=iPhone 17" build`
+  - iOS: `xcodebuild -project NetNewsWire.xcodeproj -scheme NetNewsWire-iOS -destination "platform=iOS Simulator,name=$(~/.claude/agent-issue-tools/sim-default)" build` The simulator name comes from `~/.claude/agent-issue-tools/sim-default`, the one place it is written down for this Mac (`--ipad` for the tablet). Don't hardcode a device or UDID, and never create a simulator: if `sim-default --check` fails, stop and tell David.
 
 ### Testing
 - Run all tests: Use the `NetNewsWire.xctestplan` which includes tests from all modules
